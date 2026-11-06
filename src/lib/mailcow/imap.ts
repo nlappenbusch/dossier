@@ -1,6 +1,7 @@
 import "server-only";
 
 import { randomBytes } from "node:crypto";
+import { lookup } from "node:dns/promises";
 
 import { ImapFlow } from "imapflow";
 import { simpleParser, type AddressObject } from "mailparser";
@@ -241,6 +242,32 @@ export async function imapSearchMessages(query: string, { max = 100 }: { max?: n
   });
 }
 
+/**
+ * The SMTP connection. Nodemailer asks DNS for the server's address itself,
+ * which skips /etc/hosts (Docker's extra_hosts): behind a router without
+ * hairpin NAT that's an address the container can't reach. So the address is
+ * looked up the system's way, and the name kept for the certificate.
+ */
+async function smtpTransport(config: ImapConfig) {
+  let address = config.smtpHost;
+  try {
+    address = (await lookup(config.smtpHost)).address;
+  } catch {
+    // Left to nodemailer, which says what's wrong.
+  }
+  return nodemailer.createTransport({
+    host: address,
+    port: config.smtpPort,
+    secure: config.smtpPort === 465,
+    requireTLS: config.smtpPort !== 465,
+    name: config.user.split("@")[1] || undefined,
+    tls: { servername: config.smtpHost },
+    auth: { user: config.user, pass: config.password },
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+  });
+}
+
 // ─── Sending ────────────────────────────────────────────────────────────────
 
 /**
@@ -261,15 +288,7 @@ export async function imapSendMail(mail: OutgoingMail, { threadId }: { threadId?
     .filter((address) => address.includes("@"));
   if (recipients.length === 0) throw new GoogleError("unavailable", "Add who it's to first.");
 
-  const transport = nodemailer.createTransport({
-    host: config.smtpHost,
-    port: config.smtpPort,
-    secure: config.smtpPort === 465,
-    requireTLS: config.smtpPort !== 465,
-    auth: { user: config.user, pass: config.password },
-    connectionTimeout: 15_000,
-    greetingTimeout: 15_000,
-  });
+  const transport = await smtpTransport(config);
   try {
     await transport.sendMail({ envelope: { from: config.user, to: recipients }, raw });
   } catch (error) {
@@ -305,15 +324,7 @@ export async function testImapLogin(config: ImapConfig): Promise<void> {
   } finally {
     await client.logout().catch(() => {});
   }
-  const transport = nodemailer.createTransport({
-    host: config.smtpHost,
-    port: config.smtpPort,
-    secure: config.smtpPort === 465,
-    requireTLS: config.smtpPort !== 465,
-    auth: { user: config.user, pass: config.password },
-    connectionTimeout: 15_000,
-    greetingTimeout: 15_000,
-  });
+  const transport = await smtpTransport(config);
   try {
     await transport.verify();
   } catch (error) {
