@@ -2,10 +2,14 @@
 // notice (update-check.ts, the sidebar). Safe to use in the browser.
 
 export const RELEASES_REPOSITORY = "AienTech/dossier";
-/** The repository's page, for credits and support (the sidebar). */
-export const REPOSITORY_URL = `https://github.com/${RELEASES_REPOSITORY}`;
+/**
+ * The repository's page, for credits and support (the sidebar). This fork's,
+ * so the source of what runs here is a click away (AGPL-3.0 §13); updates are
+ * still looked for upstream.
+ */
+export const REPOSITORY_URL = "https://github.com/nlappenbusch/dossier";
 /** How to update, in the wiki. */
-export const UPGRADE_GUIDE_URL = `${REPOSITORY_URL}/wiki/Upgrading`;
+export const UPGRADE_GUIDE_URL = `https://github.com/${RELEASES_REPOSITORY}/wiki/Upgrading`;
 
 /** A published release: its version, without the "v", and its page on GitHub. */
 export type Release = { version: string; url: string };

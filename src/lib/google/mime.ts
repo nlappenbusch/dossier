@@ -16,6 +16,8 @@ export type OutgoingMail = {
   inReplyTo?: string;
   /** The thread's earlier Message-IDs. */
   references?: string;
+  /** This message's own Message-ID; Gmail adds one itself, IMAP sending needs it (fork). */
+  messageId?: string;
 };
 
 /** A header value in RFC 2047 encoded words when it isn't plain ASCII. */
@@ -61,6 +63,7 @@ export function buildMessage(mail: OutgoingMail, { boundary = `dossier-${randomB
     `Subject: ${encodeHeader(mail.subject)}`,
     `Date: ${date.toUTCString().replace("GMT", "+0000")}`,
     "MIME-Version: 1.0",
+    ...(mail.messageId ? [`Message-ID: ${mail.messageId}`] : []),
     ...(mail.inReplyTo ? [`In-Reply-To: ${mail.inReplyTo}`, `References: ${[mail.references, mail.inReplyTo].filter(Boolean).join(" ")}`] : []),
   ];
   const text = ["Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", wrapped(mail.body.replace(/\r?\n/g, "\r\n"))].join("\r\n");

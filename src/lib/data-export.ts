@@ -49,7 +49,7 @@ export const EXPORT_SCHEMA_VERSIONS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8
 /** The setting that holds the encrypted API key, which only this server can read. */
 const API_KEY_SETTING = "apiKeyEnc";
 /** The settings that hold encrypted keys, which only this server can read: never exported as they are. */
-export const SECRET_SETTINGS: readonly string[] = [API_KEY_SETTING, "jsearchKeyEnc", "adzunaKeyEnc", "typesafeKeyEnc"];
+export const SECRET_SETTINGS: readonly string[] = [API_KEY_SETTING, "jsearchKeyEnc", "adzunaKeyEnc", "typesafeKeyEnc", "imapPasswordEnc"];
 /** The settings that belong to this install rather than its data (the usage ping's and its consent, the update check's, the Google client and the browser's time zone): never exported, and kept by an import. */
 export const INSTALL_SETTINGS: readonly string[] = [
   "usagePingId",

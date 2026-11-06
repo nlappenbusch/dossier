@@ -2,6 +2,9 @@ import "server-only";
 
 import { z } from "zod";
 
+import { davBusyTimes, davCreateEvent, davDeleteEvent, davGetEvent, davListEvents, davMoveEvent } from "@/lib/mailcow/caldav";
+import { usesImap } from "@/lib/mailcow/config";
+
 import { googleFetch } from "./account";
 import { googleUrl } from "./endpoints";
 import { isGone } from "./errors";
@@ -19,6 +22,7 @@ const APPLICATION_PROPERTY = "dossierApplication";
 
 /** Busy times in the calendar between `from` and `to`. */
 export async function busyTimes(calendarId: string, from: Date, to: Date, signal?: AbortSignal): Promise<Interval[]> {
+  if (await usesImap()) return davBusyTimes(calendarId, from, to, signal);
   const answer = await googleFetch<{ calendars?: Record<string, { busy?: { start: string; end: string }[] }> }>("calendar", api("/freeBusy"), {
     method: "POST",
     body: { timeMin: from.toISOString(), timeMax: to.toISOString(), items: [{ id: calendarId }] },
@@ -40,6 +44,7 @@ export type InterviewEvent = {
 
 /** Adds an interview; returns its id and link. */
 export async function createEvent(calendarId: string, event: InterviewEvent): Promise<{ id: string; htmlLink: string }> {
+  if (await usesImap()) return davCreateEvent(calendarId, event);
   const created = await googleFetch<{ id: string; htmlLink: string }>("calendar", api(`${eventPath(calendarId)}?sendUpdates=none`), {
     method: "POST",
     body: {
@@ -97,6 +102,7 @@ function readEvent(json: unknown): CalendarEvent {
 
 /** One event, or null when it's been deleted. */
 export async function getEvent(calendarId: string, eventId: string, signal?: AbortSignal): Promise<CalendarEvent | null> {
+  if (await usesImap()) return davGetEvent(calendarId, eventId, signal);
   try {
     const event = readEvent(await googleFetch("calendar", api(eventPath(calendarId, eventId)), { signal }));
     return event.cancelled ? null : event;
@@ -108,6 +114,7 @@ export async function getEvent(calendarId: string, eventId: string, signal?: Abo
 
 /** Moves an event to a new start and end. */
 export async function moveEvent(calendarId: string, eventId: string, { start, end, timeZone }: { start: Date; end: Date; timeZone: string }): Promise<CalendarEvent> {
+  if (await usesImap()) return davMoveEvent(calendarId, eventId, { start, end, timeZone });
   return readEvent(
     await googleFetch("calendar", api(`${eventPath(calendarId, eventId)}?sendUpdates=none`), {
       method: "PATCH",
@@ -118,6 +125,7 @@ export async function moveEvent(calendarId: string, eventId: string, { start, en
 
 /** Deletes an event; one that's already gone is fine. */
 export async function deleteEvent(calendarId: string, eventId: string): Promise<void> {
+  if (await usesImap()) return davDeleteEvent(calendarId, eventId);
   try {
     await googleFetch("calendar", api(`${eventPath(calendarId, eventId)}?sendUpdates=none`), { method: "DELETE" });
   } catch (error) {
@@ -127,6 +135,7 @@ export async function deleteEvent(calendarId: string, eventId: string): Promise<
 
 /** The events between `from` and `to`, recurring ones as single events, in order. At most 1,000. */
 export async function listEvents(calendarId: string, from: Date, to: Date, signal?: AbortSignal): Promise<CalendarEvent[]> {
+  if (await usesImap()) return davListEvents(calendarId, from, to, signal);
   const events: CalendarEvent[] = [];
   let pageToken: string | undefined;
   for (let page = 0; page < 4; page++) {

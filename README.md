@@ -1,3 +1,10 @@
+> **Fork von [AienTech/dossier](https://github.com/AienTech/dossier)** mit eigenen Änderungen:
+> **Mailcow / eigener Mailserver statt Google.** In Einstellungen → Google und im Setup-Schritt „Gmail and Calendar“
+> lässt sich statt eines Google-Kontos ein Postfach verbinden: Senden per SMTP (mit Kopie in „Gesendet“), Antworten lesen per
+> IMAP, Interviews und freie Zeiten per CalDAV (bei Mailcow/SOGo automatisch ausgefüllt). Code: `src/lib/mailcow/`.
+> `DOSSIER_MAIL_HOST` (z. B. `mail.example.com`) schlägt den Server im Formular vor.
+> Updates vom Original: `git fetch upstream && git merge upstream/main`.
+
 <p align="center">
   <img src="src/app/icon.svg" alt="" width="80" height="80">
 </p>

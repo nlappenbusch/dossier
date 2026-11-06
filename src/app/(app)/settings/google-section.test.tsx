@@ -36,14 +36,16 @@ beforeEach(() => vi.mocked(saveGoogleSettings).mockClear());
 
 describe("GoogleSection (E15-1)", () => {
   it("explains the setup while the server has no Google client", () => {
-    render(<GoogleSection client={client} connection={{ status: "not-configured" }} initial={settings} browserTimeZone="Europe/Berlin" redirectUri={redirect} />);
+    render(<GoogleSection client={client} connection={{ status: "not-configured" }} initial={settings} browserTimeZone="Europe/Berlin" imap={{ email: "", imapHost: "", imapPort: 993, smtpHost: "", smtpPort: 465, caldavUrl: "", defaultHost: "" }}
+        redirectUri={redirect} />);
     expect(screen.getByText(redirect)).toBeInTheDocument();
     expect(screen.getByLabelText("Client ID")).toBeInTheDocument();
     expect(screen.getByLabelText("Client secret")).toHaveAttribute("type", "password");
   });
 
   it("offers to connect", () => {
-    render(<GoogleSection client={client} connection={{ status: "disconnected" }} initial={settings} browserTimeZone={null} redirectUri={redirect} />);
+    render(<GoogleSection client={client} connection={{ status: "disconnected" }} initial={settings} browserTimeZone={null} imap={{ email: "", imapHost: "", imapPort: 993, smtpHost: "", smtpPort: 465, caldavUrl: "", defaultHost: "" }}
+        redirectUri={redirect} />);
     expect(screen.getByRole("link", { name: "Connect Google account" })).toHaveAttribute("href", "/api/google/connect");
   });
 
@@ -55,6 +57,7 @@ describe("GoogleSection (E15-1)", () => {
         connection={{ status: "connected", email: "jane@gmail.com", canSend: true, canRead: true, canUseCalendar: false, lastSync: "today at 10:00", syncProblem: null }}
         initial={settings}
         browserTimeZone="Europe/Berlin"
+        imap={{ email: "", imapHost: "", imapPort: 993, smtpHost: "", smtpPort: 465, caldavUrl: "", defaultHost: "" }}
         redirectUri={redirect}
       />,
     );

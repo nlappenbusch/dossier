@@ -213,6 +213,18 @@ export const settingsSchema = z.object({
   googleClientId: z.string().nullable().catch(null),
   /** Encrypted like the API keys (GOOGLE_CLIENT_SECRET); never sent to the client. */
   googleClientSecretEnc: z.string().nullable().catch(null),
+  // Mailcow / IMAP instead of Google (fork: nlappenbusch/dossier): mail by
+  // IMAP and SMTP, the calendar by CalDAV, with one mailbox password.
+  mailBackend: z.enum(["google", "imap"]).catch("google"),
+  imapUser: z.string().nullable().catch(null),
+  /** Encrypted like the API keys (IMAP_PASSWORD); never sent to the client. */
+  imapPasswordEnc: z.string().nullable().catch(null),
+  imapHost: z.string().nullable().catch(null),
+  imapPort: z.coerce.number().int().min(1).max(65535).catch(993),
+  smtpHost: z.string().nullable().catch(null),
+  smtpPort: z.coerce.number().int().min(1).max(65535).catch(465),
+  /** The CalDAV calendar collection, e.g. https://mail.example.com/SOGo/dav/me@example.com/Calendar/personal/ */
+  caldavUrl: z.string().nullable().catch(null),
   /** Read replies from Gmail. */
   gmailRead: flag(true),
   /** Which mail the inbox check reads: only threads Dossier knows and company domains, or every new mail. */

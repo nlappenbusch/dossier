@@ -23,6 +23,9 @@ export const GOOGLE_TOKEN: SecretKind = { purpose: "google-token-encryption", as
 /** The Google OAuth client's secret, entered in Settings → Google. */
 export const GOOGLE_CLIENT_SECRET: SecretKind = { purpose: "google-client-secret-encryption", associatedData: "dossier google client secret v1" };
 
+/** The mailbox password for Mailcow / IMAP, SMTP and CalDAV (fork: nlappenbusch/dossier). */
+export const IMAP_PASSWORD: SecretKind = { purpose: "imap-password-encryption", associatedData: "dossier imap password v1" };
+
 const VERSION = "v1";
 const IV_BYTES = 12;
 const TAG_BYTES = 16;

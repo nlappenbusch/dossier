@@ -9,6 +9,8 @@ import { setupHref } from "@/lib/setup-guide";
 import { GOOGLE_HELP, GOOGLE_STEPS } from "@/lib/setup/google";
 
 import { CALLBACK_MESSAGES, ClientCard, type GoogleClientView, type GoogleConnectionView } from "../../(app)/settings/google-section";
+import { ImapCard, type ImapView } from "../../(app)/settings/imap-card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { InstructionList } from "./instruction-list";
 
 const CONNECT = `/api/google/connect?return=${encodeURIComponent(setupHref("google"))}`;
@@ -25,6 +27,7 @@ export function GoogleStep({
   redirectUri,
   addressProblem,
   outcome,
+  imap,
 }: {
   connection: GoogleConnectionView;
   client: GoogleClientView;
@@ -32,8 +35,11 @@ export function GoogleStep({
   addressProblem: "http" | "ip" | null;
   /** What came back from Google's consent page, if anything. */
   outcome: string | null;
+  /** The mailbox form (fork: Mailcow / IMAP instead of Google). */
+  imap: ImapView;
 }) {
   const [copied, setCopied] = useState(false);
+  const [via, setVia] = useState<"imap" | "google">(imap.defaultHost || imap.imapHost ? "imap" : "google");
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(redirectUri);
@@ -48,15 +54,41 @@ export function GoogleStep({
     return (
       <Card className="flex flex-col gap-2">
         <p className="text-sm">
-          Connected as <strong className="font-medium">{connection.email}</strong>. Settings → Google is where you choose what Dossier reads and your working hours.
+          Connected as <strong className="font-medium">{connection.email}</strong>
+          {connection.via === "imap" ? " (your mail server, by IMAP, SMTP and CalDAV)" : ""}. Settings → Google is where you choose what Dossier reads and your working
+          hours.
         </p>
-        <p className="text-meta text-muted">Changing your Google password disconnects Dossier: connect again in Settings → Google when that happens.</p>
+        <p className="text-meta text-muted">
+          Changing your {connection.via === "imap" ? "mailbox" : "Google"} password disconnects Dossier: connect again in Settings → Google when that happens.
+        </p>
       </Card>
+    );
+  }
+
+  const choice = (
+    <SegmentedControl<"imap" | "google">
+      aria-label="Where your mail is"
+      options={[
+        { value: "imap", label: "Mailcow / own mail server" },
+        { value: "google", label: "Google" },
+      ]}
+      value={via}
+      onValueChange={setVia}
+    />
+  );
+
+  if (via === "imap") {
+    return (
+      <div className="flex flex-col gap-6">
+        {choice}
+        <ImapCard initial={imap} />
+      </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6">
+      {choice}
       {message && (
         <p role="status" className="rounded-card bg-warning-surface px-4 py-3 text-sm font-medium text-warning">
           {message}

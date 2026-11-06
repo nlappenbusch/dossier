@@ -15,6 +15,7 @@ import { Toggle } from "@/components/ui/toggle";
 import { checkInbox, disconnectGoogleAccount, saveGoogleClient, saveGoogleSettings } from "@/lib/google/actions";
 import { cn } from "@/lib/cn";
 
+import { ImapCard, type ImapView } from "./imap-card";
 import { SettingsSectionIntro } from "./settings-screen";
 
 export type GoogleSettings = {
@@ -42,7 +43,7 @@ export type GoogleClientView = {
 export type GoogleConnectionView =
   | { status: "not-configured" }
   | { status: "disconnected" }
-  | { status: "connected"; email: string; canSend: boolean; canRead: boolean; canUseCalendar: boolean; lastSync: string | null; syncProblem: string | null };
+  | { status: "connected"; via?: "google" | "imap"; email: string; canSend: boolean; canRead: boolean; canUseCalendar: boolean; lastSync: string | null; syncProblem: string | null };
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const INTERVALS = [5, 10, 15, 30, 60];
@@ -70,9 +71,12 @@ export function GoogleSection({
   initial,
   browserTimeZone,
   redirectUri,
+  imap,
 }: {
   connection: GoogleConnectionView;
   client: GoogleClientView;
+  /** The mailbox form (fork: Mailcow / IMAP instead of Google). */
+  imap: ImapView;
   initial: GoogleSettings;
   browserTimeZone: string | null;
   /** The address to register in Google Cloud. */
@@ -107,7 +111,13 @@ export function GoogleSection({
       router.refresh();
     });
 
-  if (connection.status === "not-configured") return <SetupSteps redirectUri={redirectUri} client={client} />;
+  if (connection.status === "not-configured")
+    return (
+      <>
+        <SetupSteps redirectUri={redirectUri} client={client} />
+        <ImapCard initial={imap} />
+      </>
+    );
 
   return (
     <>
@@ -123,6 +133,7 @@ export function GoogleSection({
               <p role="status" className="flex items-center gap-2 text-control">
                 <span aria-hidden className="size-2 flex-none rounded-full bg-success" />
                 Connected as <span className="font-medium">{connection.email}</span>
+                {connection.via === "imap" && <span className="text-muted">· mail server (IMAP, SMTP, CalDAV)</span>}
               </p>
               <Button variant="danger-outline" size="sm" onClick={() => setConfirming(true)}>
                 Disconnect
@@ -146,6 +157,8 @@ export function GoogleSection({
           </div>
         )}
       </Card>
+
+      {connection.status !== "connected" && <ImapCard initial={imap} />}
 
       {connection.status === "connected" && (
         <>

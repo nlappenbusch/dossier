@@ -1,10 +1,13 @@
 import "server-only";
 
+import { closeImap } from "@/lib/mailcow/imap";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret, encryptSecret, GOOGLE_TOKEN, SecretUnreadable } from "@/lib/secrets";
 
 import { GoogleError, isPassing } from "./errors";
-import { googleClient, hasScopes, refreshAccessToken, revokeToken, type ScopeGroup } from "./oauth";
+import { loadSettings, saveSettings } from "@/lib/settings-data";
+
+import { ALL_SCOPES, googleClient, hasScopes, refreshAccessToken, revokeToken, type ScopeGroup } from "./oauth";
 
 // The connected Google account (E15-1) and authorised calls to Google's APIs.
 // Access tokens last an hour and are kept in memory only; the refresh token
@@ -18,6 +21,8 @@ export type GoogleConnection =
   | { status: "disconnected" }
   | {
       status: "connected";
+      /** "imap": Mailcow / IMAP, SMTP and CalDAV instead of Google (fork). */
+      via?: "google" | "imap";
       email: string;
       canSend: boolean;
       canRead: boolean;
@@ -31,6 +36,21 @@ export async function loadGoogleAccount() {
 }
 
 export async function googleConnection(): Promise<GoogleConnection> {
+  const settings = await loadSettings();
+  if (settings.mailBackend === "imap") {
+    const account = await loadGoogleAccount();
+    if (!account || account.refreshTokenEnc !== IMAP_MARKER) return { status: "disconnected" };
+    return {
+      status: "connected",
+      via: "imap",
+      email: account.email,
+      canSend: true,
+      canRead: true,
+      canUseCalendar: Boolean(settings.caldavUrl),
+      lastSyncAt: account.lastSyncAt,
+      syncProblem: account.syncProblem,
+    };
+  }
   if (!(await googleClient())) return { status: "not-configured" };
   const account = await loadGoogleAccount();
   if (!account) return { status: "disconnected" };
@@ -51,10 +71,10 @@ export async function googleConnection(): Promise<GoogleConnection> {
  */
 export async function saveGoogleAccount({ email, refreshToken, scopes }: { email: string; refreshToken: string | undefined; scopes: string }) {
   const existing = await loadGoogleAccount();
-  const refreshTokenEnc = refreshToken ? encryptSecret(GOOGLE_TOKEN, refreshToken) : existing?.refreshTokenEnc;
+  const refreshTokenEnc = refreshToken ? encryptSecret(GOOGLE_TOKEN, refreshToken) : existing?.refreshTokenEnc === IMAP_MARKER ? undefined : existing?.refreshTokenEnc;
   if (!refreshTokenEnc) throw new GoogleError("rejected", "Google didn't give Dossier lasting access. Remove Dossier at myaccount.google.com/permissions and connect again.");
   // Another account replaces the old one, and its sync starts afresh.
-  const sameAccount = existing?.email.toLowerCase() === email.toLowerCase();
+  const sameAccount = existing?.refreshTokenEnc !== IMAP_MARKER && existing?.email.toLowerCase() === email.toLowerCase();
   const merged = sameAccount ? [...new Set([...existing!.scopes.split(/\s+/), ...scopes.split(/\s+/)])].filter(Boolean).join(" ") : scopes;
   await prisma.googleAccount.upsert({
     where: { id: ACCOUNT_ID },
@@ -62,11 +82,39 @@ export async function saveGoogleAccount({ email, refreshToken, scopes }: { email
     update: { email, refreshTokenEnc, scopes: merged, ...(sameAccount ? {} : { historyId: null, lastSyncAt: null, syncProblem: null }) },
   });
   tokens.delete(ACCOUNT_ID);
+  // Google again, after a mailbox reached by IMAP (fork).
+  await saveSettings({ mailBackend: "google" });
+}
+
+/** Stands in for the refresh token while the account is a mailbox reached by IMAP (fork). */
+export const IMAP_MARKER = "imap";
+
+/**
+ * Saves a mailbox reached by IMAP as the connected account (fork): it takes
+ * the Google account's place, so the inbox check and everything after it
+ * run as they do for Gmail. Another address starts the check afresh.
+ */
+export async function saveImapAccount(email: string): Promise<void> {
+  const existing = await loadGoogleAccount();
+  const same = existing?.refreshTokenEnc === IMAP_MARKER && existing.email.toLowerCase() === email.toLowerCase();
+  if (existing && existing.refreshTokenEnc !== IMAP_MARKER) await disconnectGoogle().catch(() => {});
+  await prisma.googleAccount.upsert({
+    where: { id: ACCOUNT_ID },
+    create: { id: ACCOUNT_ID, email, refreshTokenEnc: IMAP_MARKER, scopes: ALL_SCOPES.join(" ") },
+    update: { email, refreshTokenEnc: IMAP_MARKER, scopes: ALL_SCOPES.join(" "), ...(same ? {} : { historyId: null, lastSyncAt: null, syncProblem: null }) },
+  });
 }
 
 /** Disconnects: revokes the grant at Google and forgets the account. Mail already fetched stays. */
 export async function disconnectGoogle(): Promise<void> {
   const account = await loadGoogleAccount();
+  if (account?.refreshTokenEnc === IMAP_MARKER) {
+    // A mailbox: nothing to revoke. The password goes; the server addresses stay for next time.
+    await closeImap();
+    await prisma.googleAccount.deleteMany({ where: { id: ACCOUNT_ID } });
+    await saveSettings({ mailBackend: "google", imapPasswordEnc: null });
+    return;
+  }
   if (!account) return;
   try {
     await revokeToken(decryptSecret(GOOGLE_TOKEN, account.refreshTokenEnc));

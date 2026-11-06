@@ -2,6 +2,9 @@ import "server-only";
 
 import { z } from "zod";
 
+import { usesImap } from "@/lib/mailcow/config";
+import { imapCurrentHistoryId, imapGetMessage, imapMessagesSince, imapSearchMessages, imapSendMail } from "@/lib/mailcow/imap";
+
 import { googleFetch } from "./account";
 import { googleUrl } from "./endpoints";
 import { isGone } from "./errors";
@@ -14,6 +17,7 @@ const api = (path: string) => googleUrl("gmail", `/gmail/v1/users/me${path}`);
 
 /** Sends a message; with `threadId` it joins that thread. */
 export async function sendMail(mail: OutgoingMail, { threadId }: { threadId?: string } = {}): Promise<{ id: string; threadId: string }> {
+  if (await usesImap()) return imapSendMail(mail, { threadId });
   const raw = toBase64Url(buildMessage(mail));
   const sent = await googleFetch<{ id: string; threadId: string }>("send", api("/messages/send"), {
     method: "POST",
@@ -103,6 +107,7 @@ export function readMessage(json: unknown): ReadMail {
 
 /** One message, or null when it was deleted after Gmail listed it. */
 export async function getMessage(id: string, signal?: AbortSignal): Promise<ReadMail | null> {
+  if (await usesImap()) return imapGetMessage(id);
   try {
     return readMessage(await googleFetch("read", api(`/messages/${encodeURIComponent(id)}?format=full`), { signal, retry: true }));
   } catch (error) {
@@ -113,6 +118,7 @@ export async function getMessage(id: string, signal?: AbortSignal): Promise<Read
 
 /** Where the mailbox is now, to check from next time. */
 export async function currentHistoryId(signal?: AbortSignal): Promise<string> {
+  if (await usesImap()) return imapCurrentHistoryId();
   const profile = await googleFetch<{ historyId: string }>("read", api("/profile"), { signal, retry: true });
   return profile.historyId;
 }
@@ -123,6 +129,7 @@ export async function currentHistoryId(signal?: AbortSignal): Promise<string> {
  * the caller starts over from a search.
  */
 export async function messagesSince(historyId: string, signal?: AbortSignal): Promise<{ ids: string[]; historyId: string } | null> {
+  if (await usesImap()) return imapMessagesSince(historyId);
   const ids = new Set<string>();
   let pageToken: string | undefined;
   let latest = historyId;
@@ -148,6 +155,7 @@ export async function messagesSince(historyId: string, signal?: AbortSignal): Pr
 
 /** Message ids matching a Gmail search, newest first, up to `max`. */
 export async function searchMessages(query: string, { max = 100, signal }: { max?: number; signal?: AbortSignal } = {}): Promise<string[]> {
+  if (await usesImap()) return imapSearchMessages(query, { max });
   const url = new URL(api("/messages"));
   url.searchParams.set("q", query);
   url.searchParams.set("maxResults", String(Math.min(max, 500)));

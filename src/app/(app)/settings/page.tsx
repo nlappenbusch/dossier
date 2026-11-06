@@ -14,7 +14,7 @@ import { exportFileName } from "@/lib/data-export";
 import { isSqliteUrl } from "@/lib/database";
 import { env } from "@/lib/env";
 import { redirectUri } from "@/lib/google/oauth";
-import { googleClientView, googleView, requestOrigin, whenRan } from "@/lib/settings-views";
+import { googleClientView, googleView, imapView, requestOrigin, whenRan } from "@/lib/settings-views";
 import { lastKnownTimeZone, userTimeZone } from "@/lib/time-zone";
 import { appVersion } from "@/lib/version";
 import { prisma } from "@/lib/prisma";
@@ -82,6 +82,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <GoogleSection
             connection={await googleView()}
             client={await googleClientView()}
+            imap={await imapView()}
             browserTimeZone={(await userTimeZone()) ?? null}
             redirectUri={redirectUri(await requestOrigin())}
             initial={{

@@ -15,7 +15,7 @@ import { env } from "@/lib/env";
 import { isDesktopApp } from "@/lib/desktop";
 import { redirectUri } from "@/lib/google/oauth";
 import { loadSettings } from "@/lib/settings-data";
-import { googleClientView, googleView, requestOrigin } from "@/lib/settings-views";
+import { googleClientView, googleView, imapView, requestOrigin } from "@/lib/settings-views";
 import { aiChoice, choiceOf } from "@/lib/setup/ai-choices";
 import { googleAddressProblem } from "@/lib/setup/google";
 import { setupHref, setupStepFromParam } from "@/lib/setup-guide";
@@ -179,14 +179,14 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
   }
 
   if (step === "google") {
-    const [connection, client, origin] = await Promise.all([googleView(), googleClientView(), requestOrigin()]);
+    const [connection, client, origin, imap] = await Promise.all([googleView(), googleClientView(), requestOrigin(), imapView()]);
     const uri = redirectUri(origin);
     return (
       <SetupFrame
         step="google"
         title="Gmail and Calendar"
         complete={connection.status === "connected"}
-        lead="Optional, and the longest step. With your Google account connected, Dossier sends applications from your Gmail, links employers' replies to them, drafts your answers and offers times you're free. It takes a few pages in Google Cloud, done once."
+        lead="Optional. With your mailbox connected, Dossier sends applications from your address, links employers' replies to them, drafts your answers and offers times you're free. Use Google (a few pages in Google Cloud, done once) or your own mail server such as Mailcow (address and password)."
       >
         <GoogleStep
           connection={connection}
@@ -194,6 +194,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
           redirectUri={uri}
           addressProblem={googleAddressProblem(uri)}
           outcome={typeof google === "string" ? google : null}
+          imap={imap}
         />
       </SetupFrame>
     );

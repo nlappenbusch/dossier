@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { formatShortDate } from "@/lib/dates";
 import { googleConnection } from "@/lib/google/account";
 import { loadGoogleClientConfig } from "@/lib/google/oauth";
+import { loadSettings } from "@/lib/settings-data";
 
 // What Settings and the setup guide (E21) both show.
 
@@ -20,6 +21,20 @@ export async function googleView() {
 export async function googleClientView() {
   const { id, idState, secretState } = await loadGoogleClientConfig();
   return { id, idState, secretState };
+}
+
+/** The mailbox form's starting values (fork): never the password. DOSSIER_MAIL_HOST suggests the server. */
+export async function imapView() {
+  const settings = await loadSettings();
+  return {
+    email: settings.imapUser ?? "",
+    imapHost: settings.imapHost ?? "",
+    imapPort: settings.imapPort,
+    smtpHost: settings.smtpHost && settings.smtpHost !== settings.imapHost ? settings.smtpHost : "",
+    smtpPort: settings.smtpPort,
+    caldavUrl: settings.caldavUrl ?? "",
+    defaultHost: process.env.DOSSIER_MAIL_HOST?.trim() ?? "",
+  };
 }
 
 /** The address this page was reached at, for the redirect URI to register. */
