@@ -51,6 +51,9 @@ export function imapClient(config: ImapConfig): ImapFlow {
     secure: config.imapPort === 993,
     auth: { user: config.user, pass: config.password },
     logger: false,
+    // A server that can't be reached fails in seconds, not minutes.
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
     socketTimeout: 60_000,
   });
 }
@@ -264,6 +267,8 @@ export async function imapSendMail(mail: OutgoingMail, { threadId }: { threadId?
     secure: config.smtpPort === 465,
     requireTLS: config.smtpPort !== 465,
     auth: { user: config.user, pass: config.password },
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
   });
   try {
     await transport.sendMail({ envelope: { from: config.user, to: recipients }, raw });
@@ -306,6 +311,8 @@ export async function testImapLogin(config: ImapConfig): Promise<void> {
     secure: config.smtpPort === 465,
     requireTLS: config.smtpPort !== 465,
     auth: { user: config.user, pass: config.password },
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
   });
   try {
     await transport.verify();

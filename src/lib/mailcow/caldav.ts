@@ -34,7 +34,7 @@ async function dav(
   url: string,
   { method = "GET", body, headers = {}, signal }: { method?: string; body?: string; headers?: Record<string, string>; signal?: AbortSignal } = {},
 ): Promise<Response> {
-  const timeout = AbortSignal.timeout(30_000);
+  const timeout = AbortSignal.timeout(20_000);
   let response: Response;
   try {
     response = await fetch(url, {
